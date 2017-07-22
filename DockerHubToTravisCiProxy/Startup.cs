@@ -6,6 +6,8 @@
     using Microsoft.AspNetCore.Hosting;
     using Microsoft.Extensions.Configuration;
     using Microsoft.Extensions.DependencyInjection;
+    using Microsoft.Extensions.Logging;
+    using Newtonsoft.Json.Serialization;
 
     [UsedImplicitly(ImplicitUseTargetFlags.WithMembers)]
     public class Startup
@@ -31,11 +33,22 @@
                         x.ImageValidatorBranch = Configuration[nameof(TravisCiIntegrationOptions.ImageValidatorBranch)];
                     });
 
-            services.AddMvc();
+            services.AddMvc()
+                .AddJsonOptions(x =>
+                                {
+                                    x.SerializerSettings.ContractResolver =
+                                        new DefaultContractResolver(true)
+                                        {
+                                            NamingStrategy = new SnakeCaseNamingStrategy(true, true)
+                                        };
+                                });
         }
 
-        public void Configure(IApplicationBuilder app, IHostingEnvironment env)
+        public void Configure(IApplicationBuilder app, ILoggerFactory loggerFactory)
         {
+            loggerFactory
+                .AddConsole(Configuration.GetSection("Logging"));
+
             app.UseMvc();
         }
     }

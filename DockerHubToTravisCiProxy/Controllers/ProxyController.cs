@@ -7,19 +7,24 @@
     using System.Threading.Tasks;
     using Flurl.Http;
     using Microsoft.AspNetCore.Mvc;
+    using Microsoft.Extensions.Logging;
     using Microsoft.Extensions.Options;
     using Models;
 
     [Route("[controller]")]
     public class ProxyController : Controller
     {
+        private readonly ILogger<ProxyController> _logger;
         private readonly TravisCiIntegrationOptions _integrationOptions;
 
-        public ProxyController(IOptionsSnapshot<TravisCiIntegrationOptions> options)
+        public ProxyController(ILogger<ProxyController> logger, IOptionsSnapshot<TravisCiIntegrationOptions> options)
         {
+            if (logger == null)
+                throw new ArgumentNullException(nameof(logger));
             if(options == null)
                 throw new ArgumentNullException(nameof(options));
 
+            _logger = logger;
             _integrationOptions = options.Value;
         }
 
@@ -38,9 +43,9 @@
   }
 }"
                 .Replace("<ImageValidatorBranch>", _integrationOptions.ImageValidatorBranch)
-                .Replace("<ImageTag>", request.push_data.tag);
+                .Replace("<ImageTag>", request.PushData.Tag);
 
-            var labelParts = request.repository.dockerfile.Split('\n')
+            var labelParts = request.Repository.Dockerfile.Split('\n')
                 .Single(x => x.StartsWith("LABEL", StringComparison.OrdinalIgnoreCase))
                 .Split('/')
                 .Select(x => x.Trim('"'))
@@ -53,6 +58,8 @@
                     .WithHeader("Authorization", $"token {_integrationOptions.ApiKey}")
                     .PostAsync(new StringContent(body, Encoding.UTF8, "application/json"))
                     .ReceiveJson();
+
+            _logger.LogInformation($"Validation build was started for image {request.Repository.RepoName}:{request.PushData.Tag}");
         }
     }
 }
